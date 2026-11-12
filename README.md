@@ -246,7 +246,8 @@ astrbot-deskpet/
 ├── tools/                  # 开发辅助脚本
 ├── docs/
 │   ├── INSTALL.md          # 详细安装
-│   └── PROTOCOL.md         # WebSocket 协议
+│   ├── PROTOCOL.md         # WebSocket 协议
+│   └── VENDOR-PATCHES.md   # 对渲染库打的补丁说明
 ├── scripts/
 │   └── package-release.mjs # 打包 release 用
 ├── assets/                 # 图标
