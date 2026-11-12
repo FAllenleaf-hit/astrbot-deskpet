@@ -288,14 +288,22 @@ npx electron . --shot <out.png>        # 截图（注意：截图模式下 rAF �
 
 ---
 
-## 发布
+## 发布（Release 资产说明）
 
 ```bash
 node scripts/package-release.mjs
 ```
 
-会生成 `release/astrbot-deskpet-plugin-v<version>.zip`（插件包，供 AstrBot 安装）
-以及 `release/astrbot-deskpet-app-source-v<version>.zip`（App 源码）。
+生成三个 release 资产：
+
+| 文件 | 用途 |
+|---|---|
+| **`astrbot_plugin_deskpet-v<ver>.zip`** | **AstrBot 面板「上传安装」用**。zip 根部直接是 `main.py` / `metadata.yaml`（AstrBot 的 `install_plugin_from_file` 要求 `metadata.yaml` 在解压根目录） |
+| **`astrbot-deskpet-plugin-folder-v<ver>.zip`** | **手动安装用**。解压后直接得到 `astrbot_plugin_deskpet/` 文件夹，拖进 `<AstrBot>/data/plugins/` 即可 |
+| `astrbot-deskpet-app-source-v<ver>.zip` | Electron 桌宠 App 源码（不含 node_modules / models / 用户配置） |
+
+> 插件包只有 ~12KB 是正常的：里面是纯 Python + 4 个配置文件（源码约 27KB 文本）。
+> Electron 运行时（~270MB）和 Live2D 模型（授权限制）都不在其中，由用户自行安装/获取。
 
 ---
 
