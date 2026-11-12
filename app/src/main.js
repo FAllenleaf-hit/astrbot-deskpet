@@ -106,6 +106,19 @@ function readModel3(file) {
     texture: textures[0] || null,
     textures,
     expressions: (refs.Expressions || []).map((e) => e.Name),
+    // 解析每个表情实际改了哪些参数 —— 渲染端据此动态生成"表情/外貌"开关，
+    // 这样任何模型都能用，不依赖写死的表情名
+    expressionDetails: (refs.Expressions || []).map((e) => {
+      try {
+        const expFile = path.resolve(path.dirname(file), normPath(e.File || ''));
+        const j2 = JSON.parse(fs.readFileSync(expFile, 'utf8'));
+        const params = {};
+        for (const pa of j2.Parameters || []) params[pa.Id] = pa.Value;
+        return { name: e.Name, params, parts: (j2.Parts || []).map((x) => x.Id) };
+      } catch (err) {
+        return { name: e.Name, params: {}, parts: [] };
+      }
+    }),
     motionGroups: Object.keys(refs.Motions || {}),
     motions: Object.entries(refs.Motions || {}).flatMap(([g, arr]) =>
       (arr || []).map((m, i) => ({
@@ -159,6 +172,7 @@ function scanModels() {
         id: rel, name, type: info.type, file: rel,
         thumbnail: hasThumb ? (dirRel ? dirRel + '/' + thumbRel : thumbRel) : null,
         expressions: info.expressions,
+        expressionDetails: info.expressionDetails || [],
         motionGroups: info.motionGroups,
         motions: info.motions || [],
         hitAreas: info.hitAreas,
@@ -304,42 +318,15 @@ function send(channel, payload) {
 }
 
 function pageQuery() {
-  if (argv.includes('--opdiff')) return '?opdiff=1';
-  if (argv.includes('--freeze')) return '?freeze=1&sweep=1';
-  if (argv.includes('--sweep')) return '?sweep=1';
-  const hi2 = argv.indexOf('--hold');
-  if (hi2 >= 0) return '?hold=' + encodeURIComponent(argv[hi2+1] || 'curious');
-  if (argv.includes('--frametest')) return '?frametest=1';
-  if (argv.includes('--pumplean')) return '?pumplean=1';
-  if (argv.includes('--lean4')) return '?lean4=1';
-  if (argv.includes('--mcap')) return '?mcap=1';
-  if (argv.includes('--mouthlog')) return '?mouthlog=1';
-  if (argv.includes('--mparamab')) return '?mparamab=1';
-  if (argv.includes('--mouthab')) return '?mouthab=1';
-  if (argv.includes('--mouthtest')) return '?mouthtest=1';
-  if (argv.includes('--params')) return '?params=1';
-  if (argv.includes('--lean2')) return '?lean2=1';
-  if (argv.includes('--leantest')) return '?leantest=1';
-  if (argv.includes('--ranges')) return '?ranges=1';
-  if (argv.includes('--paramrange')) return '?paramrange=1';
-  if (argv.includes('--emotest')) return '?emotest=1';
-  if (argv.includes('--k4diff')) return '?k4diff=1';
-  const ei = argv.indexOf('--exprtest');
-  if (ei >= 0) return '?exprtest=' + encodeURIComponent(argv[ei+1] || '爱心眼');
-  if (argv.includes('--key4test')) return '?key4test=1';
-  const ovi = argv.indexOf('--ovtest');
-  if (ovi >= 0) return '?ovtest=' + (argv[ovi + 1] || 'all');
-  if (argv.includes('--settingstest')) return '?settingstest=1';
-  if (argv.includes('--settings')) return '?settings=1';
-  if (argv.includes('--mpopen')) return '?mpopen=1';
-  if (argv.includes('--mottest')) return '?mottest=1';
-  if (argv.includes('--plain')) return '?plain=1';
-  if (argv.includes('--pantest')) return '?pantest=1';
-  if (argv.includes('--pump')) return '?pump=1';
-  if (argv.includes('--diag')) return '?diag=1';
-  if (argv.includes('--nomul')) return '?nomul=1';
+  // 保留少量对使用者/贡献者有用的开关
+  if (argv.includes('--settings')) return '?settings=1';   // 启动即打开设置面板
+  if (argv.includes('--mpopen')) return '?mpopen=1';       // 启动即打开动作一览
+  if (argv.includes('--pump')) return '?pump=1';           // 程序化动作自检（逐帧打印参数）
+  if (argv.includes('--diag')) return '?diag=1';           // 导出模型全部 drawable 信息
+  if (argv.includes('--plain')) return '?plain=1';         // 关闭渲染加速补丁（排查用）
+  if (argv.includes('--nomul')) return '?nomul=1';         // 关闭混合颜色补丁（排查用）
   const hi = argv.indexOf('--hide');
-  if (hi >= 0 && argv[hi + 1]) return '?hide=' + argv[hi + 1];
+  if (hi >= 0 && argv[hi + 1]) return '?hide=' + argv[hi + 1];  // 隐藏指定 drawable
   return '';
 }
 

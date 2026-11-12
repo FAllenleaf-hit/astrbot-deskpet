@@ -4,24 +4,34 @@ const API = window.pet;
 const $ = (x) => document.getElementById(x);
 const log = (m) => API.log('[settings] ' + m);
 
-// 面部表情（可叠加；参数级）
-const FACE_LIST = ['爱心眼', '脸红', '流泪', '黑脸', '流冷汗', '圈圈眼', '屑屑眼', '＞＜'];
-// 外貌开关（持久）
-const LOOK_LIST = ['裙子切换', '胸口衣服', '脱鞋', '尾巴开关', '黑框眼镜', '单片眼镜', '钢盆', '兔牙', '前倾', '加载', '竖食指开'];
-// 待机嘴型（单选）
-const IDLE_MOUTH = [
-  { v: 'auto', label: '自动（随机小动作）' },
-  { v: 'smile', label: '微笑' },
-  { v: 'smirk', label: '坏笑（单边）' },
-  { v: 'pucker', label: '撅嘴' },
-  { v: 'press', label: '抿嘴' },
-  { v: 'open', label: '微张' },
-  { v: 'tongue', label: '吐舌' },
-  { v: 'off', label: '不动' },
-];
+// 表情/外貌清单：**从当前模型动态生成**（不再写死任何表情名）
+//   faceList / lookList / bodyList 由 renderFaceLook() 依据模型信息填充
+let faceList = [];
+let lookList = [];
+let bodyList = [];
 
-// 体型（三选一）
-const BODY_LIST = ['默认体型', '体型1', '体型2'];
+/** 依据模型 expressionDetails 分类填充三个清单 */
+function buildExprLists() {
+  faceList = [];
+  lookList = [];
+  bodyList = [];
+  const cur = models.find((m) => m.id === currentId) || models[0];
+  const details = (cur && cur.expressionDetails) || [];
+  for (const d of details) {
+    const ids = Object.keys((d && d.params) || {});
+    if (!ids.length) continue;
+    const allAppearance = ids.every((id) => /^(Clothes|Movement|Divider|Lean|Body)/i.test(id));
+    // 体型类：参数名里带 Body/Clothes 且值不是 0/1 的，归为「体型」
+    const isBody = ids.some((id) => /^Clothes\d+$/i.test(id)) &&
+      ids.some((id) => {
+        const v = Number(((d.params || {})[id]));
+        return v !== 0 && v !== 1 && v !== -1;
+      });
+    if (isBody) bodyList.push(d.name);
+    else if (allAppearance) lookList.push(d.name);
+    else faceList.push(d.name);
+  }
+}
 
 // 情绪回应动作（与 renderer.js 的 applyBehavior 对应）
 const EMOTION_ACTIONS = [
@@ -108,13 +118,14 @@ function renderMotions() {
 }
 
 function renderFaceLook() {
+  buildExprLists();
   const ap = (cfg && cfg.appearance) || {};
   const face = ap.face || {};
   const look = ap.look || {};
 
   const fb = $('flist');
   fb.innerHTML = '';
-  for (const name of FACE_LIST) {
+  for (const name of faceList) {
     const lab = document.createElement('label');
     lab.className = 'chk';
     const cb = document.createElement('input');
@@ -131,7 +142,7 @@ function renderFaceLook() {
 
   const lb = $('llist');
   lb.innerHTML = '';
-  for (const name of LOOK_LIST) {
+  for (const name of lookList) {
     const lab = document.createElement('label');
     lab.className = 'chk';
     const cb = document.createElement('input');
@@ -175,13 +186,13 @@ function renderFaceLook() {
 
   const bb = $('blist');
   bb.innerHTML = '';
-  for (const name of BODY_LIST) {
+  for (const name of bodyList) {
     const lab = document.createElement('label');
     lab.className = 'chk';
     const cb = document.createElement('input');
     cb.type = 'radio';
     cb.name = 'body-group';
-    cb.checked = (ap.body || '默认体型') === name;
+    cb.checked = (ap.body || bodyList[0]) === name;
     cb.addEventListener('change', () => {
       API.uiCommand('param-override:' + JSON.stringify({ kind: 'body', name }));
     });
@@ -194,7 +205,7 @@ function renderFaceLook() {
 function syncFaceUI() {
   const face = ((cfg && cfg.appearance) || {}).face || {};
   const boxes = $('flist').querySelectorAll('input');
-  FACE_LIST.forEach((name, i) => { if (boxes[i]) boxes[i].checked = !!face[name]; });
+  faceList.forEach((name, i) => { if (boxes[i]) boxes[i].checked = !!face[name]; });
 }
 
 function renderEmotionActions() {
@@ -292,11 +303,11 @@ function bind() {
     faceLocal = ap.face || {};
     lookLocal = ap.look || {};
     const boxes = $('flist').querySelectorAll('input');
-    FACE_LIST.forEach((n, i) => { if (boxes[i]) boxes[i].checked = !!faceLocal[n]; });
+    faceList.forEach((n, i) => { if (boxes[i]) boxes[i].checked = !!faceLocal[n]; });
     const lboxes = $('llist').querySelectorAll('input');
-    LOOK_LIST.forEach((n, i) => { if (lboxes[i]) lboxes[i].checked = !!lookLocal[n]; });
+    lookList.forEach((n, i) => { if (lboxes[i]) lboxes[i].checked = !!lookLocal[n]; });
     const rboxes = $('blist').querySelectorAll('input');
-    BODY_LIST.forEach((n, i) => { if (rboxes[i]) rboxes[i].checked = (ap.body || '默认体型') === n; });
+    bodyList.forEach((n, i) => { if (rboxes[i]) rboxes[i].checked = (ap.body || bodyList[0]) === n; });
   });
   window.addEventListener('keydown', (e) => { if (e.key === 'Escape') API.closeSelf(); });
 }
@@ -305,27 +316,3 @@ bind();
 loadState().catch((e) => log('初始化失败: ' + (e && e.message)));
 
 // 开发自检：?probe=1 时自动点几个按钮
-if (new URLSearchParams(location.search).get('probe') === '1') {
-  setTimeout(() => {
-    API.uiCommand('param-override:' + JSON.stringify({ kind: 'face', name: '爱心眼', on: true }));
-    log('PROBE 开 爱心眼');
-    setTimeout(() => {
-      API.uiCommand('param-override:' + JSON.stringify({ kind: 'look', name: '脱鞋', on: true }));
-      log('PROBE 开 脱鞋（应与爱心眼叠加）');
-    }, 400);
-    setTimeout(() => {
-      API.uiCommand('param-override:' + JSON.stringify({ kind: 'face', name: '脸红', on: true }));
-      log('PROBE 开 脸红（应三者共存）');
-    }, 800);
-    setTimeout(() => {
-      API.uiCommand('param-override:' + JSON.stringify({ kind: 'face', name: '圈圈眼', on: true }));
-      log('PROBE 开 圈圈眼（应自动关掉爱心眼）');
-    }, 1200);
-    setTimeout(() => { API.uiCommand('emotion-action:shyBody'); log('PROBE 请求情绪动作=shyBody'); }, 700);
-    setTimeout(() => { API.uiCommand('reset-expressions'); log('PROBE 请求恢复默认表情'); }, 1400);
-    setTimeout(() => { API.uiCommand('play-motion:Gesture:1'); log('PROBE 请求模型动作=Gesture#1'); }, 2000);
-    setTimeout(() => { patchBehavior('idleMouthMode', 'tongue'); log('PROBE 切换嘴型=tongue'); }, 2600);
-    setTimeout(() => { patchBehavior('idleMouthMode', 'smile'); log('PROBE 切换嘴型=smile'); }, 3400);
-    setTimeout(() => { const el = $('elist'); if (el) el.scrollIntoView({ block: 'start' }); log('PROBE 已滚动到表情区'); }, 2400);
-  }, 900);
-}

@@ -4,17 +4,7 @@ const API = window.pet;
 const $ = (id) => document.getElementById(id);
 const log = (...a) => API.log(a.map((x) => (typeof x === 'string' ? x : JSON.stringify(x))).join(' '));
 
-const EMOTION_ORDER = ['neutral', 'happy', 'sad', 'angry', 'surprised', 'shy', 'thinking', 'tired'];
-const EMOTION_ALIASES = {
-  neutral: ['neutral', 'normal', 'default', 'idle', '平静', '普通'],
-  happy: ['happy', 'joy', 'smile', 'fun', 'laugh', '开心', '高兴', '笑', '爱心眼', '兔牙'],
-  sad: ['sad', 'sorrow', 'cry', 'unhappy', '难过', '伤心', '哭', '流泪', '泪'],
-  angry: ['angry', 'anger', 'mad', 'annoy', '生气', '怒', '黑脸', '生气'],
-  surprised: ['surprised', 'surprise', 'shock', 'wow', '惊讶', '惊', '圈圈眼', '＞＜', '><'],
-  shy: ['shy', 'blush', 'embarrass', '害羞', '羞', '脸红'],
-  thinking: ['thinking', 'think', 'ponder', '思考', '思考中', '屑屑眼'],
-  tired: ['tired', 'sleepy', 'sleep', 'yawn', '困', '累', '流冷汗', '冷汗'],
-};
+
 
 const state = {
   cfg: null,
@@ -447,50 +437,6 @@ async function loadModel(info) {
     }
     if (state.cfg.behavior && state.cfg.behavior.chatInputPinned !== false) toggleChat(true, true);
     setTimeout(() => greet(), 1500);
-    if (new URLSearchParams(location.search).get('pantest')) {
-      setTimeout(() => {
-        state.cfg.scale = 2.0;
-        state.panAuto = true;
-        fitModel();
-        let b = model.getBounds();
-        const vb = document.getElementById('vbar');
-        API.log('PANTEST 放大2倍: 模型=[' + Math.round(b.x) + ',' + Math.round(b.y) + ' ' + Math.round(b.width) + 'x' + Math.round(b.height) + ']'
-          + ' 窗口=' + window.innerWidth + 'x' + window.innerHeight
-          + ' 竖滚动条=' + (!vb.classList.contains('hidden') ? '显示' : '隐藏'));
-        state.pan.y = -260;
-        fitModel();
-        b = model.getBounds();
-        API.log('PANTEST 上移260后: 模型=[' + Math.round(b.x) + ',' + Math.round(b.y) + ' ' + Math.round(b.width) + 'x' + Math.round(b.height) + ']');
-        state.panAuto = false;
-        state.pan.y = -99999;   // 越界测试（下界）
-        fitModel();
-        b = model.getBounds();
-        API.log('PANTEST 越界钳制后: panY=' + Math.round(state.pan.y) + ' 模型顶部y=' + Math.round(b.y));
-        state.pan.y = 99999;    // 越界测试（上界）
-        fitModel();
-        API.log('PANTEST 反向越界后: panY=' + Math.round(state.pan.y));
-        state.pan.y = 0; state.cfg.scale = 2.0; fitModel();
-        // 交互测试 1：Alt + 左键拖拽
-        const before = state.pan.y;
-        window.dispatchEvent(new MouseEvent('mousedown', { button: 0, altKey: true, screenX: 300, screenY: 400, clientX: 300, clientY: 400 }));
-        window.dispatchEvent(new MouseEvent('mousemove', { screenX: 300, screenY: 500, clientX: 300, clientY: 500 }));
-        window.dispatchEvent(new MouseEvent('mouseup', { button: 0, screenX: 300, screenY: 500, clientX: 300, clientY: 500 }));
-        API.log('PANTEST Alt拖拽: panY ' + Math.round(before) + ' -> ' + Math.round(state.pan.y));
-        // 交互测试 2：Shift + 滚轮
-        const b2 = state.pan.y;
-        window.dispatchEvent(new WheelEvent('wheel', { deltaY: -100, shiftKey: true }));
-        API.log('PANTEST Shift滚轮: panY ' + Math.round(b2) + ' -> ' + Math.round(state.pan.y));
-        // 交互测试 3：拖动右侧滚动条滑块
-        const b3 = state.pan.y;
-        const vb2 = document.getElementById('vbar');
-        vb2.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, clientY: 100 }));
-        window.dispatchEvent(new MouseEvent('mousemove', { clientY: 160 }));
-        window.dispatchEvent(new MouseEvent('mouseup', { clientY: 160 }));
-        API.log('PANTEST 滚动条拖动: panY ' + Math.round(b3) + ' -> ' + Math.round(state.pan.y));
-        state.pan.y = 0; state.cfg.scale = 1.0; fitModel();
-        API.log('PANTEST 复位: 滚动条=' + (!vb.classList.contains('hidden') ? '显示' : '隐藏'));
-      }, 2000);
-    }
     tryRandomIdle();
     // 再对每张贴图兜一遍 mipmap / 各向异性过滤
     try {
@@ -554,595 +500,27 @@ async function loadModel(info) {
     } catch (e) {
       log('混合颜色初始化失败: ' + (e && e.message));
     }
+    // 记录各参数默认值（表情"关闭"时要写回这些值）
+    try {
+      const m = model.internalModel.coreModel._model || model.internalModel.coreModel;
+      const ids = m.parameters.ids;
+      const dv = m.parameters.defaultValues;
+      const defs = {};
+      for (let i = 0; i < ids.length; i++) defs[ids[i]] = dv[i];
+      PROC.paramDefaults = defs;
+    } catch (e) { log('读取参数默认值失败: ' + (e && e.message)); }
+    state.info = info;
+    buildExprTable();
     API.modelLoaded(info.id);
     try {
       const mm = info.motions || [];
       log('动作清单: ' + mm.length + ' 个 -> ' + mm.map((x) => x.group + '#' + x.index + ':' + x.name).join(' | '));
       state.info = info;
-      if (new URLSearchParams(location.search).get('opdiff')) {
-        setTimeout(async () => {
-          const cm = model.internalModel.coreModel;
-          const m = cm._model || cm;
-          const snap = () => Array.from(m.drawables.opacities);
-          const test = [
-            ['Clothes1', 1, 0],
-            ['Clothes5', 1, 0],
-            ['Clothes3', 0, 1],
-            ['Clothes4', 0, 1],
-            ['Clothes2', 0, 1],
-            ['key4', 0, 1],
-            ['key11', 0, 1],
-            ['key10', 0, 1],
-          ];
-          for (const [id, v1, v2] of test) {
-            try { cm.setParameterValueById(id, v1); } catch (e) { /* ignore */ }
-            await new Promise((r) => setTimeout(r, 120));
-            const a = snap();
-            try { cm.setParameterValueById(id, v2); } catch (e) { /* ignore */ }
-            await new Promise((r) => setTimeout(r, 120));
-            const b = snap();
-            const diffs = [];
-            for (let i = 0; i < a.length; i++) if (Math.abs(a[i] - b[i]) > 0.02) diffs.push(i + ':' + a[i].toFixed(1) + '->' + b[i].toFixed(1));
-            API.log(' OPDIFF ' + id + ' (' + v1 + '->' + v2 + ') 影响图层=' + diffs.length + (diffs.length ? ' 例:' + diffs.slice(0, 4).join(' ') : ' ❌ 无变化'));
-          }
-          // 针对 Clothes1 打印完整变化分布
-          try {
-            const snapA = () => Array.from(m.drawables.opacities);
-            const res = {};
-            cm.setParameterValueById('Clothes1', 1);
-            await new Promise((r) => setTimeout(r, 150));
-            const s1 = snapA();
-            for (const v of [0, 0.5]) {
-              cm.setParameterValueById('Clothes1', v);
-              await new Promise((r) => setTimeout(r, 150));
-              const s2 = snapA();
-              const list = [];
-              for (let i = 0; i < s1.length; i++) if (Math.abs(s1[i] - s2[i]) > 0.02) list.push(s1[i].toFixed(1) + '->' + s2[i].toFixed(1));
-              const agg = {};
-              for (const x of list) agg[x] = (agg[x] || 0) + 1;
-              API.log(' CLOTHES1=' + v + ' 变化=' + list.length + ' 分布: ' + JSON.stringify(agg));
-            }
-          } catch (e) { API.log(' CLOTHES1 探针失败 ' + e.message); }
-          API.log(' OPDIFF 完成');
-        }, 1000);
-      }
-      if (new URLSearchParams(location.search).get('freeze')) {
-        // 冻结一切动画，用于像素级 A/B
-        setTimeout(() => {
-          try {
-            PROC.on = false;
-            PROC.behaviors = [];
-            PROC.intensity = 0;
-            state.cfg.proceduralIdle = Object.assign({}, state.cfg.proceduralIdle, { enabled: false });
-            const im = model.internalModel;
-            if (im.motionManager) { im.motionManager.stopAllMotions(); im.motionManager.expressionManager?.resetExpression?.(); }
-            if (im.eyeBlink) im.eyeBlink.enabled = false;
-            model.internalModel.physics = null;
-            API.log(' FREEZE 已冻结动画');
-          } catch (e) { API.log(' FREEZE 失败 ' + e.message); }
-        }, 800);
-      }
-      if (new URLSearchParams(location.search).get('sweep')) {
-        setTimeout(() => {
-          const cm = model.internalModel.coreModel;
-          const plan = [
-            ['Clothes1', [1, 0, -1]],
-            ['Clothes5', [1, 0, -1]],
-            ['Clothes3', [0, 1]],
-            ['Clothes4', [0, 1]],
-            ['Clothes2', [0, 0.4, 1]],
-          ];
-          let pi = 0;
-          const nextParam = () => {
-            if (pi >= plan.length) { API.log(' SWEEP 完成'); return; }
-            const [id, values] = plan[pi++];
-            let vi = 0;
-            const nextVal = () => {
-              if (vi >= values.length) { nextParam(); return; }
-              const v = values[vi++];
-              try { cm.setParameterValueById(id, v); } catch (e) { /* ignore */ }
-              API.log(' SWEEP ' + id + '=' + v + ' 实际=' + (function(){ try { return cm.getParameterValueById(id); } catch (e) { return '?'; } })());
-              setTimeout(() => { API.captureTest('sw_' + id + '_' + String(v).replace('.', 'p')); nextVal(); }, 350);
-            };
-            nextVal();
-          };
-          nextParam();
-        }, 1000);
-      }
-      if (new URLSearchParams(location.search).get('hold')) {
-        const which = new URLSearchParams(location.search).get('hold');
-        setTimeout(() => {
-          PROC.awakeUntil = performance.now() + 3600e3;
-          triggerBehavior(which, which === 'nuzzle' ? { data: { dir: 1 } } : {});
-          const emo = EMOTION_OF_ACTION[which];
-          if (emo) setEmotion(emo, 60000);
-          API.log(' HOLD 保持动作 ' + which);
-        }, 900);
-      }
-      if (new URLSearchParams(location.search).get('frametest')) {
-        setTimeout(async () => {
-          try {
-            const core = model.internalModel.coreModel;
-            const im = model.internalModel;
-            PROC.on = false;
-            PROC.behaviors = [];
-            if (im.motionManager) { try { im.motionManager.stopAllMotions(); } catch (e) {} }
-            if (im.eyeBlink) im.eyeBlink.enabled = false;
-            try { im.physics = null; } catch (e) {}
-            state.appearance = { face: {}, look: {}, body: '' };
-            applyParamOverrides();
-            const setP = (id, v) => { try { core.setParameterValueById(id, v); } catch (e) {} };
-            for (const id of ['ParamAngleX', 'ParamAngleY', 'ParamAngleZ', 'ParamBodyAngleX', 'ParamBodyAngleZ', 'LeanInput']) setP(id, 0);
-            await new Promise((r) => setTimeout(r, 1200));
-            API.log(' FRAMETEST 静帧，抓基线两次');
-            API.captureTest('ft_A1');
-            await new Promise((r) => setTimeout(r, 500));
-            API.captureTest('ft_A2');
-            setP('ParamAngleX', 25);
-            await new Promise((r) => setTimeout(r, 500));
-            API.captureTest('ft_B_angleX');
-            setP('ParamAngleX', 0);
-            setP('LeanInput', -30);
-            await new Promise((r) => setTimeout(r, 500));
-            API.captureTest('ft_C_lean');
-            API.log(' FRAMETEST 完成');
-          } catch (e) { API.log(' FRAMETEST 失败 ' + e.message); }
-        }, 1500);
-      }
-      if (new URLSearchParams(location.search).get('pumplean')) {
-        setTimeout(() => {
-          try {
-            const core = model.internalModel.coreModel;
-            PROC.on = false;
-            PROC.behaviors = [];
-            const step = (n) => { for (let i = 0; i < n; i++) { app.ticker.deltaMS = 16.7; try { postTick(); } catch (e) { /* ignore */ } model.update(16.7); } };
-            const setP = (id, v) => { try { core.setParameterValueById(id, v); } catch (e) { /* ignore */ } };
-            // A: 全部归零
-            for (const id of ['ParamAngleX', 'ParamAngleY', 'ParamAngleZ', 'ParamBodyAngleX', 'ParamBodyAngleZ', 'LeanInput']) setP(id, 0);
-            step(3);
-            API.captureTest('pl_A_zero');
-            // B: 头转 25 度
-            setTimeout(() => {
-              setP('ParamAngleX', 25);
-              step(3);
-              API.captureTest('pl_B_angleX25');
-              setTimeout(() => {
-                setP('ParamAngleX', 0);
-                setP('LeanInput', -30);
-                step(3);
-                API.captureTest('pl_C_lean-30');
-                API.log(' PUMPLEAN 抓图完成');
-              }, 300);
-            }, 300);
-          } catch (e) { API.log(' PUMPLEAN 失败 ' + e.message); }
-        }, 1200);
-      }
-      if (new URLSearchParams(location.search).get('lean4')) {
-        setTimeout(async () => {
-          try {
-            const core = model.internalModel.coreModel;
-            const m = core._model || core;
-            const snapV = () => Array.from(m.drawables.vertexPositions);
-            const snapO = () => Array.from(m.drawables.opacities);
-            const measure = async (id, v1, v2) => {
-              core.setParameterValueById(id, v1);
-              await new Promise((r) => setTimeout(r, 300));
-              const a1 = snapV(), o1 = snapO();
-              core.setParameterValueById(id, v2);
-              await new Promise((r) => setTimeout(r, 300));
-              const a2 = snapV(), o2 = snapO();
-              let vm = 0, vmax = 0, om = 0;
-              for (let i = 0; i < a1.length; i++) { const d = Math.abs(a1[i] - a2[i]); if (d > 1e-4) { vm++; if (d > vmax) vmax = d; } }
-              for (let i = 0; i < o1.length; i++) if (Math.abs(o1[i] - o2[i]) > 0.02) om++;
-              API.log(' LEAN4 ' + id + ' ' + v1 + '->' + v2 + ' 顶点变化=' + vm + '/' + a1.length + ' 最大位移=' + vmax.toFixed(3) + ' 透明度变化=' + om);
-              core.setParameterValueById(id, 0);
-              await new Promise((r) => setTimeout(r, 200));
-            };
-            await measure('ParamAngleX', 0, 25);     // 对照组：应该明显形变
-            await measure('ParamBodyAngleX', 0, 25);
-            await measure('LeanInput', 0, -30);      // 待测
-            API.log(' LEAN4 完成');
-          } catch (e) { API.log(' LEAN4 失败 ' + e.message); }
-        }, 1200);
-      }
-      if (new URLSearchParams(location.search).get('mcap')) {
-        setTimeout(async () => {
-          PROC.idleMouthMode = 'off';
-          await new Promise((r) => setTimeout(r, 800));
-          API.captureTest('live_off');
-          await new Promise((r) => setTimeout(r, 600));
-          API.captureTest('live_off2');
-          PROC.idleMouthMode = 'tongue';
-          await new Promise((r) => setTimeout(r, 900));
-          API.captureTest('live_tongue');
-          PROC.idleMouthMode = 'press';
-          await new Promise((r) => setTimeout(r, 900));
-          API.captureTest('live_press');
-          PROC.idleMouthMode = 'smile';
-          await new Promise((r) => setTimeout(r, 900));
-          API.captureTest('live_smile');
-          PROC.idleMouthMode = 'pucker';
-          await new Promise((r) => setTimeout(r, 900));
-          API.captureTest('live_pucker');
-          API.log(' MCAP 完成');
-        }, 3000);
-      }
-      if (new URLSearchParams(location.search).get('mouthlog')) {
-        setInterval(() => {
-          try {
-            const cm = model.internalModel.coreModel;
-            const g = (id) => { try { return cm.getParameterValueById(id).toFixed(2); } catch (e) { return '?'; } };
-            API.log(' MOUTHLOG 模式=' + PROC.idleMouthMode + ' 开=' + g('ParamMouthOpenY') + ' 型=' + g('ParamMouthForm') +
-              ' 抿=' + g('Press') + ' 笑L=' + g('MouthSmile_L') + ' 撅=' + g('Mouthpucker') + ' 舌=' + g('TongueOut') + ' 颌=' + g('JawOpen'));
-          } catch (e) { /* ignore */ }
-        }, 3000);
-      }
-      if (new URLSearchParams(location.search).get('mparamab')) {
-        setTimeout(async () => {
-          try {
-            const core = model.internalModel.coreModel;
-            const im = model.internalModel;
-            PROC.behaviors = []; PROC.mouthOn = false;
-            PROC.awakeUntil = performance.now() + 3.6e6;
-            PROC.nextLook = performance.now() + 3.6e6;
-            PROC.nextYawn = performance.now() + 3.6e6;
-            try { im.motionManager.stopAllMotions(); } catch (e) {}
-            if (im.eyeBlink) im.eyeBlink.enabled = false;
-            try { im.physics = null; } catch (e) {}
-            const set = (id, v) => { try { core.setParameterValueById(id, v); } catch (e) {} };
-            const reset = () => { for (const id of ['ParamMouthOpenY', 'ParamMouthForm', 'JawOpen', 'Press', 'MouthSmile_L', 'MouthSmile_R', 'Mouthpucker', 'MouthFunnel', 'TongueOut']) set(id, 0); };
-            const wait = (ms) => new Promise((r) => setTimeout(r, ms));
-            reset();
-            await wait(600);
-            API.captureTest('mp_base');
-            const tests = [
-              ['ParamMouthOpenY', 0.9, 'mouthopen'],
-              ['ParamMouthForm', -1.0, 'form_neg'],
-              ['ParamMouthForm', 1.0, 'form_pos'],
-              ['JawOpen', 1.0, 'jaw'],
-              ['Press', 1.0, 'press'],
-              ['MouthSmile_L', 1.0, 'smileL'],
-            ];
-            for (const [id, v, tag] of tests) {
-              reset();
-              set(id, v);
-              await wait(500);
-              API.captureTest('mp_' + tag);
-            }
-            reset();
-            API.log(' MPARAMAB 完成');
-          } catch (e) { API.log(' MPARAMAB 失败 ' + e.message); }
-        }, 1500);
-      }
-      if (new URLSearchParams(location.search).get('mouthab')) {
-        setTimeout(async () => {
-          try {
-            const core = model.internalModel.coreModel;
-            const im = model.internalModel;
-            // 冻结一切动画，只让参数变化
-            PROC.behaviors = [];
-            PROC.nextMouth = performance.now() + 3.6e6;
-            PROC.mouthTimer = 0;
-            PROC.awakeUntil = performance.now() + 3.6e6;
-            PROC.nextLook = performance.now() + 3.6e6;
-            PROC.nextYawn = performance.now() + 3.6e6;
-            state.cfg.proceduralIdle = Object.assign({}, state.cfg.proceduralIdle, { enabled: false });
-            try { im.motionManager.stopAllMotions(); } catch (e) {}
-            if (im.eyeBlink) im.eyeBlink.enabled = false;
-            try { im.physics = null; } catch (e) {}
-            const step = (n) => { for (let i = 0; i < n; i++) { app.ticker.deltaMS = 16.7; try { postTick(); } catch (e) {} try { model.update(16.7); } catch (e) {} } };
-            const cap = (n) => API.captureTest(n);
-            PROC.mouthOn = true;
-            PROC.idleMouthStrength = 1.0;
-            // 基线：不动，连抓两次
-            PROC.idleMouthMode = 'off';
-            step(20);
-            await new Promise((r) => setTimeout(r, 400));
-            cap('mab_off1');
-            await new Promise((r) => setTimeout(r, 700));
-            cap('mab_off2');
-            const modes = ['smile', 'pucker', 'press', 'open', 'tongue'];
-            for (const m of modes) {
-              PROC.idleMouthMode = m;
-              step(20);
-              await new Promise((r) => setTimeout(r, 400));
-              cap('mab_' + m);
-              PROC.idleMouthMode = 'off';
-              step(10);
-            }
-            API.log(' MOUTHAB 抓图完成');
-          } catch (e) { API.log(' MOUTHAB 失败 ' + e.message); }
-        }, 1500);
-      }
-      if (new URLSearchParams(location.search).get('mouthtest')) {
-        setTimeout(() => {
-          try {
-            const cm = model.internalModel.coreModel;
-            const modes = ['auto', 'smile', 'smirk', 'pucker', 'press', 'open', 'tongue', 'off'];
-            PROC.on = true; PROC.mouthOn = true;
-            const step = (n) => { for (let i = 0; i < n; i++) { app.ticker.deltaMS = 16.7; try { postTick(); } catch (e) {} } };
-            for (const m of modes) {
-              PROC.idleMouthMode = m;
-              PROC.idleMouthStrength = 0.8;
-              step(8);
-              const g = (id) => { try { return cm.getParameterValueById(id).toFixed(2); } catch (e) { return '?'; } };
-              API.log(' MOUTHTEST ' + m.padEnd(7) + ' 开=' + g('ParamMouthOpenY') + ' 型=' + g('ParamMouthForm') +
-                ' 抿=' + g('Press') + ' 笑L=' + g('MouthSmile_L') + ' 撅=' + g('Mouthpucker') +
-                ' 舌=' + g('TongueOut') + ' 颌=' + g('JawOpen'));
-            }
-          } catch (e) { API.log(' MOUTHTEST 失败 ' + e.message); }
-        }, 1200);
-      }
-      if (new URLSearchParams(location.search).get('params')) {
-        setTimeout(() => {
-          try {
-            const m = model.internalModel.coreModel._model || model.internalModel.coreModel;
-            const ids = m.parameters.ids;
-            const mn = m.parameters.minimumValues, mx = m.parameters.maximumValues;
-            API.log(' PARAMS 共 ' + ids.length + ' 个参数:');
-            const line = [];
-            for (let i = 0; i < ids.length; i++) line.push(ids[i] + '[' + mn[i] + ',' + mx[i] + ']');
-            API.log(' PARAMS ' + line.join(' '));
-          } catch (e) { API.log(' PARAMS 失败 ' + e.message); }
-        }, 900);
-      }
-      if (new URLSearchParams(location.search).get('lean2')) {
-        setTimeout(async () => {
-          try {
-            const core = model.internalModel.coreModel;
-            const m = core._model || core;
-            const vSnap = () => Array.from(m.drawables.vertexPositions);
-            state.appearance = { face: {}, look: {}, body: '' };
-            applyParamOverrides();
-            await new Promise((r) => setTimeout(r, 250));
-            const v0 = vSnap();
-            const p0 = core.getParameterValueById('LeanInput');
-            state.appearance.look['前倾'] = true;
-            applyParamOverrides();
-            await new Promise((r) => setTimeout(r, 250));
-            const v1 = vSnap();
-            const p1 = core.getParameterValueById('LeanInput');
-            let moved = 0, maxd = 0;
-            for (let i = 0; i < v0.length; i++) {
-              const d = Math.abs(v0[i] - v1[i]);
-              if (d > 1e-4) { moved++; if (d > maxd) maxd = d; }
-            }
-            API.log(' LEAN2 前倾前 LeanInput=' + p0 + ' 后=' + p1 + ' 顶点变化量=' + moved + '/' + v0.length + ' 最大位移=' + maxd.toFixed(4));
-          } catch (e) { API.log(' LEAN2 失败 ' + e.message); }
-        }, 900);
-      }
-      if (new URLSearchParams(location.search).get('leantest')) {
-        setTimeout(async () => {
-          try {
-            const m = model.internalModel.coreModel._model || model.internalModel.coreModel;
-            const cm = model.internalModel.coreModel;
-            const ids = m.parameters.ids;
-            let idx = -1;
-            for (let i = 0; i < ids.length; i++) if (ids[i] === 'LeanInput') { idx = i; break; }
-            if (idx >= 0) {
-              API.log(' LEANTEST LeanInput min=' + m.parameters.minimumValues[idx] + ' max=' + m.parameters.maximumValues[idx] + ' default=' + m.parameters.defaultValues[idx]);
-            } else {
-              API.log(' LEANTEST 模型里没有 LeanInput');
-            }
-            const snap = () => Array.from(m.drawables.opacities);
-            cm.setParameterValueById('LeanInput', 0);
-            await new Promise((r) => setTimeout(r, 150));
-            const a = snap();
-            for (const v of [-15, -30, 30]) {
-              cm.setParameterValueById('LeanInput', v);
-              await new Promise((r) => setTimeout(r, 150));
-              const b = snap();
-              let n = 0;
-              for (let i = 0; i < a.length; i++) if (Math.abs(a[i] - b[i]) > 0.02) n++;
-              API.log(' LEANTEST LeanInput=' + v + ' 实际=' + (function(){try{return cm.getParameterValueById('LeanInput');}catch(e){return'?';}})() + ' 影响透明度图层=' + n);
-            }
-            // 顶点是否被驱动（判断是否真的是形变参数）
-            let moved = 0;
-            cm.setParameterValueById('LeanInput', 0);
-            await new Promise((r) => setTimeout(r, 120));
-            const v0 = Array.from(m.drawables.vertexPositions);
-            cm.setParameterValueById('LeanInput', -30);
-            await new Promise((r) => setTimeout(r, 120));
-            const v1 = Array.from(m.drawables.vertexPositions);
-            for (let i = 0; i < v0.length; i++) if (Math.abs(v0[i] - v1[i]) > 1e-4) moved++;
-            API.log(' LEANTEST LeanInput 驱动的顶点变化量=' + moved + ' / 总顶点数=' + v0.length);
-          } catch (e) { API.log(' LEANTEST 失败 ' + e.message); }
-        }, 900);
-      }
-      if (new URLSearchParams(location.search).get('ranges')) {
-        setTimeout(() => {
-          try {
-            const m = model.internalModel.coreModel._model || model.internalModel.coreModel;
-            const ids = m.parameters.ids;
-            const mn = m.parameters.minimumValues;
-            const mx = m.parameters.maximumValues;
-            const dv = m.parameters.defaultValues;
-            const want = ['ParamAngleX', 'ParamAngleY', 'ParamAngleZ', 'ParamBodyAngleX', 'ParamBodyAngleY', 'ParamBodyAngleZ',
-              'ParamEyeBallX', 'ParamEyeBallY', 'ParamEyeLOpen', 'ParamMouthOpenY', 'ParamMouthForm', 'ParamBrowLY', 'ParamBrowRY', 'ParamBreath'];
-            for (const id of want) {
-              let idx = -1;
-              for (let i = 0; i < ids.length; i++) if (ids[i] === id) { idx = i; break; }
-              if (idx < 0) { API.log(' RANGES ' + id + ' = 模型里没有这个参数'); continue; }
-              API.log(' RANGES ' + id + ' min=' + mn[idx] + ' max=' + mx[idx] + ' default=' + dv[idx]);
-            }
-          } catch (e) { API.log(' RANGES 失败 ' + e.message); }
-        }, 900);
-      }
-      if (new URLSearchParams(location.search).get('paramrange')) {
-        setTimeout(() => {
-          try {
-            const cm = model.internalModel.coreModel;
-            const ids = ['Clothes1', 'Clothes2', 'Clothes3', 'Clothes4', 'Clothes5', 'LeanInput', 'Movement1', 'Movement3',
-              'key1', 'key2', 'key3', 'key4', 'key5', 'key6', 'key7', 'key8', 'key9', 'key10', 'key11', 'key12', 'key13'];
-            for (const id of ids) {
-              let mn = '?', mx = '?', def = '?', cur = '?';
-              try { mn = cm.getParameterMinimumValue(id); } catch (e) { /* ignore */ }
-              try { mx = cm.getParameterMaximumValue(id); } catch (e) { /* ignore */ }
-              try { def = cm.getParameterDefaultValue(id); } catch (e) { /* ignore */ }
-              try { cur = cm.getParameterValueById(id); } catch (e) { /* ignore */ }
-              API.log(' RANGE ' + id + ' min=' + mn + ' max=' + mx + ' default=' + def + ' now=' + cur);
-            }
-          } catch (e) { API.log(' RANGE 失败 ' + e.message); }
-        }, 900);
-      }
-      if (new URLSearchParams(location.search).get('emotest')) {
-        setTimeout(() => {
-          const list = ['happy', 'shy', 'sad', 'angry', 'surprised', 'thinking', 'tired'];
-          let i = 0;
-          const step = () => {
-            if (i >= list.length) {
-              setEmotion('neutral', 0);
-              API.log(' EMOTEST 全部完成');
-              return;
-            }
-            const emo = list[i++];
-            setEmotion(emo, 3000);
-            setTimeout(() => {
-              API.log(' EMOTEST ' + emo + ' -> 参数 ' + JSON.stringify(PROC.overrides));
-              step();
-            }, 350);
-          };
-          step();
-        }, 1200);
-      }
-      if (new URLSearchParams(location.search).get('k4diff')) {
-        setTimeout(() => {
-          const cm = model.internalModel.coreModel;
-          const m = cm._model || cm;
-          const snap = () => {
-            const out = [];
-            for (let i = 0; i < m.drawables.ids.length; i++) out.push(m.drawables.opacities[i]);
-            return out;
-          };
-          state.appearance = { face: {}, look: {}, body: '' };
-          cm.setParameterValueById('key4', 0);
-          applyParamOverrides();
-          setTimeout(() => {
-            const a = snap();
-            state.appearance.face['爱心眼'] = true;
-            applyParamOverrides();
-            setTimeout(() => {
-              const b = snap();
-              const diffs = [];
-              for (let i = 0; i < a.length; i++) if (Math.abs(a[i] - b[i]) > 0.01) diffs.push(i + ':' + a[i].toFixed(2) + '->' + b[i].toFixed(2));
-              API.log(' K4DIFF key4=0->1 影响的图层数=' + diffs.length + (diffs.length ? (' 前10: ' + diffs.slice(0, 10).join(' ')) : '（没有任何图层变化！）'));
-              API.log(' K4DIFF 参数范围 key4 min=' + cm.getParameterMinimumValue?.('key4') + ' max=' + cm.getParameterMaximumValue?.('key4'));
-            }, 300);
-          }, 300);
-        }, 900);
-      }
-      if (new URLSearchParams(location.search).get('exprtest')) {
-        const expName = new URLSearchParams(location.search).get('exprtest');
-        setTimeout(() => {
-          API.captureTest('expr_A_baseline');
-          API.log(' EXPRTEST 基线已抓，准备应用表达式: ' + expName);
-          setTimeout(() => {
-            try {
-              model.expression(expName);
-              const cm = model.internalModel.coreModel;
-              API.log(' EXPRTEST 已调用 expression(' + expName + ')，key4=' + cm.getParameterValueById('key4'));
-            } catch (e) { API.log(' EXPRTEST 失败 ' + e.message); }
-            setTimeout(() => {
-              try {
-                const cm2 = model.internalModel.coreModel;
-                API.log(' EXPRTEST 0.5s 后 key4=' + cm2.getParameterValueById('key4'));
-              } catch (e) { /* ignore */ }
-              API.captureTest('expr_B_applied');
-            }, 500);
-          }, 500);
-        }, 900);
-      }
-      if (new URLSearchParams(location.search).get('key4test')) {
-        setTimeout(() => {
-          state.appearance = { face: {}, look: {}, body: '' };
-          applyParamOverrides();
-          API.log(' KEY4TEST 基线抓图');
-          API.captureTest('key4_A_baseline');
-          setTimeout(() => {
-            state.appearance.face['爱心眼'] = true;
-            applyParamOverrides();
-            API.log(' KEY4TEST 开爱心眼后抓图');
-            setTimeout(() => API.captureTest('key4_B_hearts'), 400);
-          }, 700);
-        }, 900);
-      }
-      if (new URLSearchParams(location.search).get('ovtest')) {
-        const mode = new URLSearchParams(location.search).get('ovtest');
-        setTimeout(() => {
-          state.appearance = { face: {}, look: {}, body: '' };
-          if (mode.includes('hearts')) state.appearance.face['爱心眼'] = true;
-          if (mode.includes('shy')) state.appearance.face['脸红'] = true;
-          if (mode.includes('shoes')) state.appearance.look['脱鞋'] = true;
-          if (mode.includes('skirt')) state.appearance.look['裙子切换'] = true;
-          if (mode.includes('all')) {
-            state.appearance.face['爱心眼'] = true;
-            state.appearance.face['脸红'] = true;
-            state.appearance.look['脱鞋'] = true;
-            state.appearance.look['黑框眼镜'] = true;
-            state.appearance.body = '体型2';
-          }
-          applyParamOverrides();
-          API.log(' OVTEST 生效参数: ' + JSON.stringify(PROC.overrides));
-          setTimeout(() => {
-            try {
-              const m2 = model.internalModel.coreModel._model || model.internalModel.coreModel;
-              let n1 = 0, n0 = 0;
-              for (let i = 0; i < m2.drawables.ids.length; i++) {
-                const o = m2.drawables.opacities[i];
-                if (o > 0.9) n1++; else if (o < 0.1) n0++;
-              }
-              API.log(' OVTEST 全不透明图层=' + n1 + ' 全透明图层=' + n0 + '（裙子切换开时应比基线多约 30 个不透明）');
-            } catch (e) { /* ignore */ }
-          }, 300);
-          try {
-            const cm = model.internalModel.coreModel;
-            const m = cm._model || cm;
-            const ids = [];
-            if (m.parameters && m.parameters.ids) {
-              for (let i = 0; i < m.parameters.ids.length; i++) if (/^key/i.test(m.parameters.ids[i])) ids.push(m.parameters.ids[i]);
-            }
-            API.log(' OVTEST 模型里的 key 参数: ' + ids.join(','));
-            const idx = typeof cm.getParameterIndex === 'function' ? cm.getParameterIndex('key4') : -2;
-            API.log(' OVTEST key4 index=' + idx + ' 当前值=' + (function(){ try { return cm.getParameterValueById('key4'); } catch(e){ return 'err'; } })());
-            // 记录若干 drawable 的透明度，看 key4 是否驱动了它们
-            const d = m.drawables;
-            const snap = [];
-            for (let i = 0; i < d.ids.length; i++) if (d.opacities[i] > 0.01) snap.push(i + ':' + d.opacities[i].toFixed(2));
-            API.log(' OVTEST 可见drawable数=' + snap.length);
-          } catch (e) { API.log(' OVTEST 探针失败 ' + e.message); }
-        }, 1000);
-      }
-      if (new URLSearchParams(location.search).get('settingstest')) {
-        setTimeout(() => {
-          try {
-            const btn = document.getElementById('btn-settings');
-            API.log(' SETTEST ⚙按钮存在=' + !!btn);
-            btn.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
-            API.log(' SETTEST hover后 dockHover=' + !!state.dockHover);
-            btn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-            API.log(' SETTEST 已点击 ⚙（应弹出独立设置窗）');
-          } catch (e) { API.log(' SETTEST 失败 ' + e.message); }
-        }, 1200);
-      }
       if (new URLSearchParams(location.search).get('settings')) {
         setTimeout(() => openSettings(), 700);
       }
       if (new URLSearchParams(location.search).get('mpopen')) {
         setTimeout(() => { openMotionPicker(); selectMotion(2); }, 900);
-      }
-      if (new URLSearchParams(location.search).get('mottest')) {
-        setTimeout(() => {
-          openMotionPicker();
-          const vis = !document.getElementById('motionpicker').classList.contains('hidden');
-          API.log(' MOTTEST 面板可见=' + vis + ' 条目数=' + mpItems.length);
-          mpItems.slice(0, 3).forEach((it, i) => setTimeout(() => playMotion(it.group, it.index, it.name), 600 * (i + 1)));
-          setTimeout(() => {
-            mpSel = 1; highlightMotion();
-            API.log(' MOTTEST 选中项=' + (mpItems[mpSel] ? mpItems[mpSel].name : '?'));
-            closeMotionPicker();
-            API.log(' MOTTEST 关闭后可见=' + !document.getElementById('motionpicker').classList.contains('hidden'));
-          }, 2600);
-        }, 1200);
       }
     } catch (e) { log('动作清单输出失败: ' + (e && e.message)); }
     log('已加载 ' + info.name + ' | 表情:' + JSON.stringify(info.expressions) + ' | 动作:' + JSON.stringify(info.motionGroups) + ' | 口型参数:' + lipParam);
@@ -1398,79 +776,88 @@ function bindSettings() {
 
 // ---------------------------------------------------------------- 参数级表情/外貌覆盖层
 // 直接从 .exp3.json 的实参整理出来（参数名来自模型作者）
-// 「面部」之间只要不同参数就能叠加；key3~key6 是共享的，所以圈圈眼/屑屑眼/＞＜ 互斥
-const FACE_EXPR = {
-  '爱心眼': { key4: 1 },
-  '脸红': { key7: 1 },
-  '流泪': { key2: 1 },
-  '黑脸': { key1: 1 },
-  '流冷汗': { key13: 1 },
-  '圈圈眼': { key3: 1, key4: 0, key5: 0, key6: 0 },
-  '屑屑眼': { key3: 0, key5: 0, key6: 1 },
-  '＞＜': { key3: 0, key4: 0, key5: 1, key6: 0 },
+// 不同表情用不同参数就能叠加；共用同一参数的会自动互斥（由 faceConflicts 判定）
+// 外观/表情表：**从模型自身的 .exp3.json 动态生成**（没有任何写死的表情名）
+//   EXPR_TABLE[name] = { params: {参数: 值}, off: {参数: 关值} | null }
+// off：若该参数默认值不是 0，关闭时要写回默认值（避免"关不掉"）
+const EXPR_TABLE = {};
+
+/** 由模型信息重建表情表；在模型加载后调用 */
+function buildExprTable() {
+  for (const k of Object.keys(EXPR_TABLE)) delete EXPR_TABLE[k];
+  const details = (state.info && state.info.expressionDetails) || [];
+  const defaults = PROC.paramDefaults || {};
+  for (const d of details) {
+    const params = d && d.params ? d.params : {};
+    const ids = Object.keys(params);
+    if (!ids.length) continue;
+    // 关掉时：把参数写回模型默认值（多数是 0，个别服装参数默认值不是 0）
+    const off = {};
+    for (const id of ids) off[id] = Number(defaults[id] || 0);
+    EXPR_TABLE[d.name] = { params, off };
+  }
+  log('已从模型解析表情表: ' + Object.keys(EXPR_TABLE).length + ' 个');
+}
+
+function exprParamsOf(name) {
+  const t = EXPR_TABLE[String(name || '')];
+  return t ? Object.assign({}, t.params) : null;
+}
+
+/** 判断某表情是否属于「外貌类」（改的是服装/道具/体型参数） */
+function isAppearanceExpr(name) {
+  const p = exprParamsOf(name);
+  if (!p) return false;
+  const ids = Object.keys(p);
+  return ids.every((id) => /^(Clothes|Movement|Divider|Lean|Body)/i.test(id) || /^Clothes\d+$/i.test(id));
+}
+
+// 情绪 -> 面部表情：按模型里表情的**名字**做模糊匹配（不写死任何具体表情）
+const EMOTION_KEYWORDS = {
+  happy: ['happy', 'joy', 'smile', '笑', '开心', '爱心', 'heart'],
+  sad: ['sad', 'cry', 'tear', '哭', '难过', '流泪', '悲'],
+  angry: ['angry', 'anger', '怒', '生气', '黑脸'],
+  surprised: ['surprise', 'shock', '惊', '圈圈'],
+  shy: ['shy', 'blush', '脸红', '害羞'],
+  thinking: ['think', '思考', '屑屑'],
+  tired: ['tired', 'sleep', '困', '累', '哈欠'],
 };
 
-// 外貌：开关式，一直保持
-const LOOK_EXPR = {
-  '裙子切换': { on: { Clothes1: 0 }, off: { Clothes1: 1 } },   // 默认1，0=换另一条裙子
-  '尾巴开关': { on: { Clothes5: 0 }, off: { Clothes5: 1 } },   // 默认1
-  '胸口衣服': { on: { Clothes3: 1 }, off: { Clothes3: 0 } },
-  '脱鞋': { on: { Clothes4: 1 }, off: { Clothes4: 0 } },
-  '黑框眼镜': { on: { key11: 1 }, off: { key11: 0 } },
-  '单片眼镜': { on: { key12: 1 }, off: { key12: 0 } },
-  '钢盆': { on: { key10: 1 }, off: { key10: 0 } },
-  '兔牙': { on: { key9: 1 }, off: { key9: 0 } },
-  '前倾': { on: { LeanInput: -30 }, off: { LeanInput: 0 } },
-  '加载': { on: { key8: 1 }, off: { key8: 0 } },
-  '竖食指开': { on: { Movement1: 0, Movement3: 1 }, off: { Movement1: 0, Movement3: 0 } },
-};
-
-// 体型：三选一
-const BODY_EXPR = {
-  '体型1': { Clothes2: 0.4 },
-  '体型2': { Clothes2: 1.0 },
-  '默认体型': { Clothes2: 0 },
-};
-
-// 情绪 -> 面部表情（参数级）
-const EMOTION_FACE = {
-  happy: '爱心眼',
-  shy: '脸红',
-  sad: '流泪',
-  angry: '黑脸',
-  surprised: '圈圈眼',
-  thinking: '屑屑眼',
-  tired: '＞＜',
-  neutral: null,
-};
-
-function exprParams(table, name) {
-  const t = table[String(name || '')];
-  return t ? Object.assign({}, t) : null;
+/** 找当前情绪在模型里对应的表情名（找不到就返回 null） */
+function resolveEmotionExpr(emotion) {
+  const key = String(emotion || '').toLowerCase();
+  const names = Object.keys(EXPR_TABLE);
+  if (!names.length) return null;
+  const kw = EMOTION_KEYWORDS[key];
+  if (kw) {
+    for (const w of kw) {
+      const hit = names.find((n) => String(n).toLowerCase().includes(w.toLowerCase()));
+      if (hit) return hit;
+    }
+  }
+  return null;
 }
 
 /** 合并所有生效的参数：外貌 < 面部开关 < 当前情绪 */
 function collectOverrides() {
   const out = {};
   const ap = state.appearance || {};
-  // 体型
-  if (ap.body && BODY_EXPR[ap.body]) Object.assign(out, BODY_EXPR[ap.body]);
   // 外貌开关：开、关都写确定值，避免残留
-  for (const name of Object.keys(LOOK_EXPR)) {
-    const on = !!(ap.look || {})[name];
-    const v = on ? LOOK_EXPR[name].on : LOOK_EXPR[name].off;
-    if (v) Object.assign(out, v);
+  for (const name of Object.keys(ap.look || {})) {
+    const t = EXPR_TABLE[name];
+    if (!t) continue;
+    Object.assign(out, ap.look[name] ? t.params : t.off);
   }
   // 面部表情（可多选）
   for (const name of Object.keys(ap.face || {})) {
     if (!ap.face[name]) continue;
-    const v = exprParams(FACE_EXPR, name);
-    if (v) Object.assign(out, v);
+    const t = EXPR_TABLE[name];
+    if (t) Object.assign(out, t.params);
   }
   // 情绪表情优先级最高
-  const emoFace = EMOTION_FACE[state.emotion];
+  const emoFace = resolveEmotionExpr(state.emotion);
   if (emoFace && state.emotionUntil > performance.now()) {
-    const v = exprParams(FACE_EXPR, emoFace);
+    const v = exprParamsOf(emoFace);
     if (v) Object.assign(out, v);
   }
   return out;
@@ -1497,13 +884,13 @@ function applyParamOverrides() {
 
 /** 判断某个面部表情是否与已启用的冲突（共享参数） */
 function faceConflicts(name) {
-  const mine = exprParams(FACE_EXPR, name);
+  const mine = exprParamsOf(name);
   if (!mine) return [];
   const ap = state.appearance || {};
   const out = [];
   for (const other of Object.keys(ap.face || {})) {
     if (!ap.face[other] || other === name) continue;
-    const theirs = exprParams(FACE_EXPR, other);
+    const theirs = exprParamsOf(other);
     if (!theirs) continue;
     if (Object.keys(mine).some((k) => k in theirs)) out.push(other);
   }
@@ -2616,35 +2003,6 @@ window.addEventListener('wheel', (e) => {
 window.addEventListener('dblclick', (e) => { if (overModel(e.clientX, e.clientY)) toggleChat(true); });
 
 // ------------------------------------------------------------------ 表情
-function resolveExpression(emotion) {
-  const list = (state.info && state.info.expressions) || [];
-  const emo = String(emotion || 'neutral').toLowerCase().trim();
-  // 1) config 覆盖
-  const ov = (state.cfg.emotionExpressions || {})[emo];
-  if (ov !== undefined && ov !== null) {
-    if (typeof ov === 'number') return list[ov] !== undefined ? list[ov] : null;
-    const hit = list.find((n) => String(n).toLowerCase() === String(ov).toLowerCase());
-    if (hit) return hit;
-    // 允许直接写表达式序号字符串
-    const n = Number(ov);
-    if (!Number.isNaN(n) && list[n] !== undefined) return list[n];
-  }
-  // 2) 名字里带语义（如 Mao 的 exp_01 就不行，Haru 的 F01 也不行，但自己做的模型常带名字）
-  const aliases = EMOTION_ALIASES[emo] || [emo];
-  for (const a of aliases) {
-    const hit = list.find((n) => String(n).toLowerCase().includes(a.toLowerCase()));
-    if (hit) return hit;
-  }
-  // 3) 表情少于 9 个（Haru/Mao 这种纯情绪集）时按固定顺序分配；
-  //    表情很多说明是「功能型」模型（含体型/服装/道具），宁可不换表情也不要乱挑
-  if (list.length && list.length <= 8) {
-    const idx = EMOTION_ORDER.indexOf(emo);
-    if (idx >= 0) return list[idx % list.length];
-    return list[0];
-  }
-  return null;
-}
-
 function setEmotion(emotion, holdMs) {
   if (!model) return;
   state.emotion = String(emotion || 'neutral').toLowerCase();
@@ -2652,7 +2010,7 @@ function setEmotion(emotion, holdMs) {
   clearTimeout(emotionTimer);
   if (holdMs) emotionTimer = setTimeout(() => resetEmotion(), holdMs);
   applyParamOverrides();
-  const face = EMOTION_FACE[state.emotion];
+  const face = resolveEmotionExpr(state.emotion);
   if (face) log('情绪表情 ' + state.emotion + ' -> ' + face);
 }
 
