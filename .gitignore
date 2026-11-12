@@ -1,0 +1,29 @@
+# 依赖
+node_modules/
+__pycache__/
+*.py[cod]
+.venv/
+
+# 运行时数据（用户自己的配置，不要提交）
+config.json
+app/config.json
+data/
+shots/
+*.log
+*.jsonl
+
+# Live2D 模型文件（体积大 + 授权限制，绝不入库）
+models/*
+!models/README.md
+app/models/*
+!app/models/README.md
+
+# 构建产物
+release/
+dist/
+*.zip
+
+# 系统
+.DS_Store
+Thumbs.db
+desktop.ini

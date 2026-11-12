@@ -1,0 +1,74 @@
+{
+  "host": {
+    "description": "桌宠地址",
+    "type": "string",
+    "default": "127.0.0.1",
+    "hint": "桌宠 App 监听的地址，和桌宠 config.json 里的 ws.host 保持一致"
+  },
+  "port": {
+    "description": "桌宠端口",
+    "type": "int",
+    "default": 8765,
+    "hint": "桌宠 App 监听的端口，和桌宠 config.json 里的 ws.port 保持一致"
+  },
+  "token": {
+    "description": "连接令牌（可选）",
+    "type": "string",
+    "default": "",
+    "hint": "如果桌宠 config.json 的 ws.token 填了值，这里要填一样的；否则留空"
+  },
+  "shared_umo": {
+    "description": "共享会话（共用记忆）",
+    "type": "string",
+    "default": "",
+    "hint": "填某个已有会话的 unified_msg_origin，桌宠就会和它共用同一条对话上下文与人格。例如 QQ 私聊：default:FriendMessage:123456789。留空则桌宠使用自己的独立会话（人格仍共享长期记忆）。"
+  },
+  "emotion_tag": {
+    "description": "解析回复中的情绪标签",
+    "type": "bool",
+    "default": true,
+    "hint": "开启后，回复里的 [happy] 等标签会驱动桌宠表情，并从消息中移除，不会显示给对方"
+  },
+  "mark_admin": {
+    "description": "把桌宠消息视为管理员",
+    "type": "bool",
+    "default": true,
+    "hint": "桌宠运行在你自己的电脑上，默认按管理员处理。开启后可绕过会话白名单（需 AstrBot 设置里开启「管理员忽略白名单」），并允许在桌宠里使用管理员命令。公共电脑请关闭。"
+  },
+  "owner_id": {
+    "description": "发送者 ID（可选）",
+    "type": "string",
+    "default": "",
+    "hint": "桌宠消息在 AstrBot 里显示的发送者 ID。留空则自动取 shared_umo 末尾那段（通常是 QQ 号）"
+  },
+  "mood_ttl_sec": {
+    "description": "情绪有效期（秒）",
+    "type": "int",
+    "default": 7200,
+    "hint": "桌宠会延续上一次回复的情绪，超过这个时间就不延续了"
+  },
+  "max_image_mb": {
+    "description": "图片体积上限（MB）",
+    "type": "int",
+    "default": 4,
+    "hint": "回复里的图片转给桌宠显示，超过这个体积就跳过（避免传输过大）"
+  },
+  "debug": {
+    "description": "写入调试日志",
+    "type": "bool",
+    "default": false,
+    "hint": "开启后关键步骤写入 <AstrBot 数据目录>/deskpet/debug.log，排查问题用"
+  },
+  "inject_emotion_hint": {
+    "description": "自动注入情绪标签指令",
+    "type": "bool",
+    "default": true,
+    "hint": "每次 LLM 请求会追加一段「回复末尾附带情绪标签」的输出约定，这样不用改人格也能让桌宠有表情。注意：模型不一定遵守。"
+  },
+  "strip_tag_on_other_platforms": {
+    "description": "在其他平台移除情绪标签",
+    "type": "bool",
+    "default": true,
+    "hint": "QQ 等平台的消息里，把 [happy] 这类标签去掉，避免被其他人看到"
+  }
+}

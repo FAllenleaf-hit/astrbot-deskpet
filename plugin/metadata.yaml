@@ -1,0 +1,10 @@
+name: astrbot_plugin_deskpet
+display_name: Live2D 桌宠
+desc: 把 Live2D 桌宠作为 AstrBot 的第二个对话入口，可与任意已有会话共用同一条对话上下文与人格
+version: 1.0.0
+author: astrbot-deskpet
+repo: "https://github.com/USER/astrbot-deskpet"
+tags:
+  - live2d
+  - desktop-pet
+  - platform-adapter

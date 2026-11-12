@@ -1,0 +1,19 @@
+{
+  "name": "astrbot-deskpet",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Live2D 桌宠：可与 AstrBot 共用同一人格与对话记忆",
+  "main": "src/main.js",
+  "scripts": {
+    "start": "electron .",
+    "shot": "electron . --screenshot",
+    "demo": "electron . --screenshot --demo",
+    "fetch-models": "node tools/fetch-models.js"
+  },
+  "dependencies": {
+    "ws": "^8.22.2"
+  },
+  "devDependencies": {
+    "electron": "^33.4.11"
+  }
+}

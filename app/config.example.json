@@ -1,0 +1,59 @@
+{
+  "model": "",
+  "scale": 1,
+  "fill": 0.9,
+  "renderScale": 1.5,
+  "clippingMaskSize": 2048,
+  "autoHideBlendColor": false,
+  "glMipmapPatch": false,
+  "alwaysOnTop": true,
+  "showInTaskbar": true,
+  "clickThrough": true,
+  "window": {
+    "width": 380,
+    "height": 680,
+    "x": null,
+    "y": null
+  },
+  "ws": {
+    "enabled": true,
+    "host": "127.0.0.1",
+    "port": 8765,
+    "token": ""
+  },
+  "bubble": {
+    "ttlMs": 15000,
+    "width": 320
+  },
+  "idle": {
+    "minSec": 18,
+    "maxSec": 45,
+    "enabled": true
+  },
+  "behavior": {
+    "enabled": true,
+    "nightSleepy": true,
+    "yawns": true,
+    "lookAround": true,
+    "turnBeforeSpeak": true,
+    "greetOnStart": true,
+    "interactionChat": "local",
+    "chatInputPinned": true,
+    "emotionAction": true,
+    "amplitude": 2.5,
+    "idleMouth": true,
+    "idleMouthMode": "auto",
+    "idleMouthStrength": 0.7,
+    "nodRhythm": true,
+    "multiAction": true
+  },
+  "proceduralIdle": {
+    "enabled": true,
+    "breath": true,
+    "headSway": true,
+    "bodySway": true,
+    "intensity": 1
+  },
+  "emotionExpressions": {},
+  "petName": "桌宠"
+}

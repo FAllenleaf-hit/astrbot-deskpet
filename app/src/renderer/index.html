@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta http-equiv="Content-Security-Policy"
+      content="default-src 'self' deskpet:; img-src 'self' deskpet: data: blob: http: https:; media-src 'self' deskpet: data: blob:; script-src 'self' deskpet: 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; connect-src 'self' deskpet: data: blob:; worker-src 'self' blob:;" />
+<title>AstrBot Deskpet</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <canvas id="stage"></canvas>
+
+  <div id="bubble" class="hidden">
+    <div id="bubble-text"></div>
+  </div>
+
+  <div id="chat" class="hidden">
+    <input id="chat-input" type="text" placeholder="和她说点什么…（Enter 发送，Esc 关闭）" autocomplete="off" />
+  </div>
+
+  <div id="motionpicker" class="hidden">
+    <div class="mp-head">
+      <span>🎬 动作一览</span>
+      <span class="mp-hint">← → 切换 · Enter 播放 · Esc 关闭</span>
+    </div>
+    <div id="mp-list"></div>
+  </div>
+
+  <div id="picker" class="hidden">
+    <div class="picker-head">
+      <span>选择 Live2D 形象</span>
+      <div class="picker-actions">
+        <button id="picker-rescan" title="重新扫描 models 目录">刷新</button>
+        <button id="picker-open-dir" title="打开 models 文件夹">打开目录</button>
+        <button id="picker-close" title="关闭">×</button>
+      </div>
+    </div>
+    <div id="picker-grid"></div>
+  </div>
+
+  <div id="dock">
+    <button id="btn-chat" title="打字聊天（也可双击角色）">💬</button>
+    <button id="btn-pin" title="始终置顶（开/关）">📌</button>
+    <button id="btn-settings" title="设置">⚙</button>
+    <button id="btn-collapse" title="收起到托盘">⌄</button>
+  </div>
+
+  <div id="vbar" class="hidden"><div id="vthumb"></div></div>
+  <div id="hbar" class="hidden"><div id="hthumb"></div></div>
+
+  <div id="grip" title="拖动调整大小（Ctrl+滚轮也行）"></div>
+
+  <div id="hud">
+    <span id="hud-dot" class="dot"></span>
+    <span id="hud-text">初始化…</span>
+  </div>
+
+  <div id="loading">正在加载形象…</div>
+
+  <script src="vendor/live2dcubismcore.min.js"></script>
+  <script src="vendor/pixi.min.js"></script>
+  <script src="vendor/pixi-live2d-display.cubism4.min.js"></script>
+  <script src="renderer.js"></script>
+</body>
+</html>
