@@ -25,7 +25,7 @@ const PLUGIN_NAME = 'astrbot_plugin_deskpet';
 const PLUGIN_FILES = ['main.py', 'metadata.yaml', '_conf_schema.json', 'requirements.txt', 'README.md'];
 
 function readVersion() {
-  const md = fs.readFileSync(path.join(ROOT, 'plugin/metadata.yaml'), 'utf8');
+  const md = fs.readFileSync(path.join(ROOT, 'metadata.yaml'), 'utf8');
   const m = md.match(/^version:\s*(.+)$/m);
   return (m ? m[1] : '0.0.0').trim();
 }
@@ -65,7 +65,14 @@ fs.rmSync(path.join(OUT, '_stage'), { recursive: true, force: true });
 // ---- 1) 面板上传版：zip 根部直接是文件 ----
 const flat = path.join(OUT, '_stage', 'flat');
 fs.mkdirSync(flat, { recursive: true });
-for (const f of PLUGIN_FILES) fs.copyFileSync(path.join(ROOT, 'plugin', f), path.join(flat, f));
+for (const f of PLUGIN_FILES) {
+  // README 用插件专用的那份（仓库根 README 是项目总说明，篇幅较长）
+  if (f === 'README.md') {
+    fs.copyFileSync(path.join(ROOT, 'docs/PLUGIN-README.md'), path.join(flat, 'README.md'));
+  } else {
+    fs.copyFileSync(path.join(ROOT, f), path.join(flat, f));
+  }
+}
 zip(flat, path.join(OUT, PLUGIN_NAME + '-v' + ver + '.zip'));
 
 // ---- 2) 手动安装版：含 astrbot_plugin_deskpet/ 文件夹 ----
@@ -76,7 +83,7 @@ zip(wrapped, path.join(OUT, 'astrbot-deskpet-plugin-folder-v' + ver + '.zip'));
 
 // ---- 3) App 源码版 ----
 const appStage = path.join(OUT, '_stage', 'app', 'astrbot-deskpet-app');
-copyDir(path.join(ROOT, 'app'), appStage, ['node_modules', 'config.json', 'models', 'shots', 'release']);
+copyDir(path.join(ROOT, 'desktop-app'), appStage, ['node_modules', 'config.json', 'models', 'shots', 'release']);
 zip(appStage, path.join(OUT, 'astrbot-deskpet-app-source-v' + ver + '.zip'));
 
 fs.rmSync(path.join(OUT, '_stage'), { recursive: true, force: true });

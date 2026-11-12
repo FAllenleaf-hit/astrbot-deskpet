@@ -1,6 +1,6 @@
 # 对第三方渲染库做的补丁
 
-`app/src/renderer/vendor/pixi-live2d-display.cubism4.min.js` 是
+`desktop-app/src/renderer/vendor/pixi-live2d-display.cubism4.min.js` 是
 [pixi-live2d-display 0.4.0](https://github.com/guansss/pixi-live2d-display) 的 Cubism4 UMD 构建，
 本项目在其上打了 **3 处补丁**，用于支持 Cubism 的「混合颜色」特性。
 
@@ -57,7 +57,7 @@ this.gl.uniform4f(n.uniformBaseColorLocation,h.R,h.G,h.B,h.A),globalThis.__dpSet
 
 ## 配套的运行时实现
 
-`app/src/renderer/renderer.js` 里的 `globalThis.__dpSetBlendColor`：
+`desktop-app/src/renderer/renderer.js` 里的 `globalThis.__dpSetBlendColor`：
 
 ```js
 globalThis.__dpSetBlendColor = function (gl, shaderSet) {

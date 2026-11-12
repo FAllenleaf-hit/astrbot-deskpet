@@ -62,7 +62,7 @@ Cubism 3/4 模型**都能用，且不需要作者提供动作文件：
 - **说话前先转头**看向你，再显示气泡
 - **长回复**中途穿插小动作，避免长时间一个姿势
 
-> 具体每个情绪用什么参数组合，见 `app/src/renderer/renderer.js` 里的 `applyBehavior()`。
+> 具体每个情绪用什么参数组合，见 `desktop-app/src/renderer/renderer.js` 里的 `applyBehavior()`。
 > 想加自己的动作，照着写一个 `case` 即可。
 
 ### 🎨 外观、表情、嘴型（跟随模型能力自动适配）
@@ -103,6 +103,34 @@ Cubism 3/4 模型**都能用，且不需要作者提供动作文件：
 
 ---
 
+## 发布到 AstrBot 插件市场
+
+本仓库的结构**已按 AstrBot 插件市场要求**组织：`metadata.yaml` / `main.py` 就在**仓库根目录**，
+市场会从根目录打包插件（zip 需 < 16MB，本项目约 370KB）。
+
+上架步骤：
+
+1. **确保 `metadata.yaml` 里的 `repo` 指向本仓库**（已填好）
+2. 在 GitHub 打一个 **Release**（tag 例如 `v1.0.0`）
+   > 有 Release 时 AstrBot 会用它提供的 zipball；没有 Release 时它会去找 `master.zip`，
+   > 而本仓库默认分支是 `main` —— 所以**建议一定打 Release**
+3. 打开 [AstrBot 插件发布页](https://cloud.astrbot.app/)（需注册 AstrBot Cloud 账号），
+   填入仓库地址即可提交审核
+4. 通过后即可在 AstrBot 面板的「插件市场」里被所有用户搜索到
+
+参考：[官方文档 · 发布插件到插件市场](https://docs.astrbot.app/dev/star/plugin-publish.html)
+
+用户安装方式（任选）：
+
+| 方式 | 需要的文件 |
+|---|---|
+| 插件市场搜索安装 | — |
+| 面板「从仓库安装」 | 仓库 URL（建议带分支：`.../tree/main`）|
+| 面板「上传安装」 | Release 里的 `astrbot_plugin_deskpet-vX.Y.Z.zip` |
+| 手动放入目录 | Release 里的 `astrbot-deskpet-plugin-folder-vX.Y.Z.zip` |
+
+---
+
 ## 快速开始
 
 > 详细步骤见 [`docs/INSTALL.md`](docs/INSTALL.md)
@@ -114,7 +142,7 @@ Cubism 3/4 模型**都能用，且不需要作者提供动作文件：
 
 ```bash
 git clone https://github.com/USER/astrbot-deskpet.git
-cd astrbot-deskpet/app
+cd astrbot-deskpet/desktop-app
 npm install
 ```
 
@@ -132,7 +160,7 @@ npm install
 
 ```bash
 npm start
-# 或 Windows 双击 app/start.bat
+# 或 Windows 双击 desktop-app/start.bat
 ```
 桌宠右下角点 **⚙** → 设置面板里可以切换形象、预览动作和表情。
 
@@ -193,7 +221,7 @@ default:FriendMessage:123456789
 
 > 平台的 id 可以在面板「消息平台」里看到（默认是 `default`）。
 
-### 桌宠配置（`app/config.json`，首次运行自动生成）
+### 桌宠配置（`desktop-app/config.json`，首次运行自动生成）
 
 | 项 | 说明 |
 |---|---|
@@ -268,14 +296,14 @@ default:FriendMessage:123456789
 
 ```
 astrbot-deskpet/
-├── app/                    # Electron 桌宠 App
+├── desktop-app/            # Electron 桌宠 App
 │   ├── src/main.js         # 主进程：窗口 / 托盘 / WebSocket 服务端 / IPC
 │   ├── src/preload.js      # contextBridge API
 │   └── src/renderer/       # 渲染进程：Pixi + Live2D + 行为系统 + 设置面板
-├── plugin/                 # AstrBot 插件（平台适配器）
-│   ├── main.py
-│   ├── _conf_schema.json   # 面板里的插件配置项
-│   └── metadata.yaml
+├── main.py                 # ★ 插件本体就在仓库根（AstrBot 插件市场的要求）
+├── metadata.yaml           # 插件元信息（市场据此展示）
+├── _conf_schema.json       # 面板里的插件配置项定义
+├── requirements.txt        # 插件依赖：websockets
 ├── models/                 # ← 你自己放 Live2D 模型（不入库）
 ├── tools/                  # 开发辅助脚本
 ├── docs/

@@ -6,8 +6,9 @@ __pycache__/
 
 # 运行时数据（用户自己的配置，不要提交）
 config.json
-app/config.json
+desktop-app/config.json
 data/
+desktop-app/shots/
 shots/
 *.log
 *.jsonl
@@ -15,8 +16,8 @@ shots/
 # Live2D 模型文件（体积大 + 授权限制，绝不入库）
 models/*
 !models/README.md
-app/models/*
-!app/models/README.md
+desktop-app/models/*
+!desktop-app/models/README.md
 
 # 构建产物
 release/

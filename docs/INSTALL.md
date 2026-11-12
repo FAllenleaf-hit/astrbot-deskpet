@@ -15,7 +15,7 @@
 
 ```bash
 git clone https://github.com/USER/astrbot-deskpet.git
-cd astrbot-deskpet/app
+cd astrbot-deskpet/desktop-app
 npm install
 ```
 
@@ -31,7 +31,7 @@ npm install
 npm start
 ```
 
-Windows 也可以双击 `app/start.bat`，或自己创建桌面快捷方式指向：
+Windows 也可以双击 `desktop-app/start.bat`，或自己创建桌面快捷方式指向：
 
 ```
 <项目路径>/node_modules/electron/dist/electron.exe "<项目路径>/app"

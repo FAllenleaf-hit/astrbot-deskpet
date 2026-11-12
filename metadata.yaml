@@ -1,0 +1,41 @@
+name: astrbot_plugin_deskpet
+display_name: Live2D 桌宠
+short_desc: 把 Live2D 桌宠作为机器人的第二个对话入口，共享同一人格与记忆
+desc: |
+  # Live2D 桌宠
+
+  把 AstrBot 机器人变成一个住在桌面上的 Live2D 形象，并与它**共享同一条对话与记忆**。
+
+  ## 特性
+
+  - 🎭 **共享人格与记忆**：桌宠消息走 AstrBot 正常流水线，自动继承 provider / 人格 /
+    插件 / 长期记忆；`shared_umo` 可让它与某个已有会话（如 QQ 私聊）共用同一条上下文
+  - 💃 **参数驱动的动作系统**：不依赖动作文件，直接驱动 Cubism 标准参数，
+    任何 Cubism 3/4 模型都能用（开心弹跳 / 低头 / 转身 / 凑近 / 害羞摇晃 / 思考…）
+  - 🎨 **外观跟随模型**：自动扫描模型自带的表情（`.exp3.json`）与服装道具参数，
+    做成可叠加、可持久保存的开关
+  - 🖼 **支持图片与分段回复**：图片真的显示在气泡里，多段回复自动合并
+  - 🔌 **不需要 NapCat**：走本地 WebSocket，与 QQ 链路完全解耦
+
+  ## 使用前提
+
+  需要配合桌面端程序 **astrbot-deskpet**（Electron 桌宠 App）一起使用：
+
+  https://github.com/FAllenleaf-hit/astrbot-deskpet
+
+  安装完本插件后，在「消息平台」新增 **Live2D 桌宠**，
+  把 `host`/`port` 填成桌宠 App 的监听地址（默认 `127.0.0.1:8765`）即可。
+
+  详细说明见桌面端仓库的 README 与 docs/INSTALL.md。
+version: 1.0.0
+author: FAllenleaf-hit
+repo: https://github.com/FAllenleaf-hit/astrbot-deskpet
+astrbot_version: ">=4.26.0"
+social_link: https://github.com/FAllenleaf-hit
+tags:
+  - live2d
+  - 桌宠
+  - 桌面宠物
+  - 平台适配器
+  - 人格
+  - 记忆
